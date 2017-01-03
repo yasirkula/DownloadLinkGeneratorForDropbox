@@ -28,24 +28,30 @@
 	}
 	?>" />
 	
-	<pre>Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasirkula@gmail.com</a></pre></br>
+	<pre>Source code available at: <a href="https://github.com/yasirkula/DownloadLinkGeneratorForDropbox">https://github.com/yasirkula/DownloadLinkGeneratorForDropbox</a> (using <i>HTML</i>, <i>PHP</i> and <i>Javascript</i>)</br>
+Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasirkula@gmail.com</a></pre>
 	
 	<h3>How does it work?</h3>
 	Using the Dropbox API, after you authenticate this app, a number of queries are sent to the path you provide.</br></br>
 	
 	- If path leads to a file and the file is shared, download link to that file is returned</br>
-	- If path leads to a directory, download links for any shared files in that directory and any directories under it (recursive) are returned</br></br>
+	- If path leads to a directory, download links for any shared file in that directory and any directory under it (recursive) are returned</br></br>
 	
 	If auto sharing is enabled, any unshared file at the path will automatically be shared publicly.</br>
-	Note that using this app on a huge folder might yield API errors for sending too many requests to the server</br></br>
+	Note that using this app on a huge folder might yield API errors for sending too many requests to the server.</br></br>
 	
 	<?php if( $tokenIsSet == 1 ) { ?>
 	Click this button when e.g. you login as another Dropbox user or if app doesn't seem to work: <button onclick="revokeSession()">Reauthenticate</button></br></br>
 	
+	<h3>Example path</h3>
+	<img src="ExamplePath.png" alt="Example path image"></img></br>
+	Path to the selected file: Photoshop/Web3/HTML/index.html</br>
+	Path to the parent folder: Photoshop/Web3/HTML/</br></br>
+	
 	<h3>Options</h3>
 	Path to file/folder: <input type="text" name="dropboxPath" id="dropboxPath"></br>
 	<input type="checkbox" name="cacheLinks" id="cacheLinks"> Cache shared links for better performance (<u>select this option</u> unless you enter the path of a single file or a tiny directory)</br>
-	<input type="checkbox" name="autoShare" id="autoShare"> Automatically share unshared file(s) publicly (undoing this might be nightmare for large directories!)</br></br>
+	<input type="checkbox" name="autoShare" id="autoShare"> Automatically share unshared file(s) publicly (undoing this might be a nightmare for large directories!)</br></br>
 	
 	<button onclick="executeQuery()">Go!</button>
 	<?php } else { ?>
