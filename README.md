@@ -10,7 +10,7 @@ Using the Dropbox API, after user authenticates the app, a number of queries are
 
 If auto sharing is enabled, any unshared file at the path will automatically be shared publicly
 
-##Why would I want to use an app like that?
+##Why would I want to use this app?
 
 Say you have a large number of files and you want to get a download link for each of these files. You decide to host your files on Dropbox. The thing is, you don't want to spend so much time sharing each file separately and copying their download links manually. 
 
