@@ -2,6 +2,11 @@
 <html>
 <head>
 	<title>Dropbox Download Link Generator</title>
+	
+	<!-- Optional. -->
+	<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@7/dist/polyfill.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/2.0.3/fetch.js"></script>
+	
 	<script src="https://unpkg.com/dropbox/dist/Dropbox-sdk.min.js"></script>
 </head>
 <body onload="pageLoaded()">
@@ -28,8 +33,7 @@
 	}
 	?>" />
 	
-	<pre>Source code available at: <a href="https://github.com/yasirkula/DownloadLinkGeneratorForDropbox">https://github.com/yasirkula/DownloadLinkGeneratorForDropbox</a> (using <i>HTML</i>, <i>PHP</i> and <i>Javascript</i>)</br>
-Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasirkula@gmail.com</a></pre>
+	<pre>Source code available at: <a href="https://github.com/yasirkula/DownloadLinkGeneratorForDropbox">https://github.com/yasirkula/DownloadLinkGeneratorForDropbox</a> (using <i>HTML</i>, <i>PHP</i> and <i>Javascript</i>)</pre>
 	
 	<h3>How does it work?</h3>
 	Using the Dropbox API, after you authenticate this app, a number of queries are sent to the path you provide.</br></br>
@@ -51,7 +55,7 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 	<h3>Options</h3>
 	Path to file/folder: <input type="text" name="dropboxPath" id="dropboxPath"></br>
 	<input type="checkbox" name="cacheLinks" id="cacheLinks"> Cache shared links for better performance (<u>select this option</u> unless you enter the path of a single file or a tiny directory)</br>
-	<input type="checkbox" name="autoShare" id="autoShare"> Automatically share unshared file(s) publicly (undoing this might be a nightmare for large directories!)</br></br>
+	<input type="checkbox" name="autoShare" id="autoShare"> Automatically share unshared file(s) publicly (because unshared files can't return a download link)(<b>Warning:</b> undoing this might be a nightmare for large directories!)</br></br>
 	
 	<button onclick="executeQuery()">Go!</button>
 	<?php } else { ?>
@@ -68,9 +72,9 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 	var CLIENT_ID = 'YOUR_APP_CLIENT_ID';
 	var dbx;
 	
-	var statusText;
-	var resultText;
-	var errorText;
+	var statusText = document.getElementById('status');
+	var resultText = document.getElementById('result');
+	var errorText = document.getElementById('error');
 	
 	var waitingFileCount = 0;
 	var waitingFolderCount = 0;
@@ -142,9 +146,7 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 	function processFolderInner(m_path, response)
 	{
 		if( response.has_more )
-		{
 			processFolder( m_path, response.cursor );
-		}
 			
 		var items = response.entries;
 		items.forEach(function(item) 
@@ -152,14 +154,14 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 			if( item[".tag"] != 'folder' )
 			{
 				if( waitingFileCount < concurrentFileOpCount )
-					filePrintShareLink( item.path_display, item.rev );
+					processFile( item.path_display, item.rev );
 				else
 					waitingFilesStack.push( { _path: item.path_display, _rev: item.rev } );
 			}
 		});
 	}
 	
-	function filePrintShareLink(m_path, rev)
+	function processFile(m_path, rev)
 	{
 		if( cacheSharedLinks )
 		{
@@ -168,7 +170,7 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 			else if( autoShareFiles )
 			{
 				onWaitForFile( true );
-				fileCreateShareLink( m_path );
+				shareFile( m_path );
 			}
 		}
 		else
@@ -182,13 +184,9 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 					onWaitForFile( false );
 				}
 				else if( autoShareFiles )
-				{
-					fileCreateShareLink( m_path );
-				}
+					shareFile( m_path );
 				else
-				{
 					onWaitForFile( false );
-				}
 			}).catch(function(error) {
 				errorText.innerHTML += "Error code " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
 				onWaitForFile( false );
@@ -196,7 +194,7 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 		}
 	}
 	
-	function fileCreateShareLink(m_path)
+	function shareFile(m_path)
 	{
 		dbx.sharingCreateSharedLinkWithSettings({ path: m_path }).then(function(response) {
 			resultText.innerHTML += getDownloadLink( m_path, response.url );
@@ -210,13 +208,9 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 	function onWaitForFolder( isWaiting )
 	{
 		if( isWaiting )
-		{
 			waitingFolderCount++;
-		}
 		else
-		{
 			waitingFolderCount--;
-		}
 		
 		onStatusUpdate();
 	}
@@ -224,9 +218,7 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 	function onWaitForFile( isWaiting )
 	{
 		if( isWaiting )
-		{
 			waitingFileCount++;
-		}
 		else
 		{
 			waitingFileCount--;
@@ -234,21 +226,20 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 			if( waitingFilesStack.length > 0 )
 			{
 				var fileToPrint = waitingFilesStack.shift();
-				filePrintShareLink( fileToPrint._path, fileToPrint._rev );
+				processFile( fileToPrint._path, fileToPrint._rev );
 			}
 		}
 		
 		console.log( "Files in progress: " + waitingFileCount );
-		
 		onStatusUpdate();
 	}
 	
 	function onStatusUpdate()
 	{
 		if( waitingFileCount != 0 || waitingFolderCount != 0 )
-			statusText.innerHTML = "Please wait...";
+			statusText.innerHTML = "Status: <span style=\"text-style=bold; color:blue;\">please wait...</span>";
 		else
-			statusText.innerHTML = "";
+			statusText.innerHTML = "Status: <span style=\"text-style=bold; color:green;\">finished</span>";
 	}
 	
 	function getDownloadLink(m_path, shareLink)
@@ -263,7 +254,7 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 		else
 			m_path = m_path.substring( relativePathStartIndex );
 		
-		return m_path + " " + shareLink + "\r\n";
+		return m_path + " <a href=\"" + shareLink + "\">" + shareLink + "</a>\r\n";
 	}
 
 	function executeQuery()
@@ -277,24 +268,18 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 		cacheSharedLinks = document.getElementById('cacheLinks').checked;
 		autoShareFiles = document.getElementById('autoShare').checked;
 		
-		statusText = document.getElementById('status');
-		resultText = document.getElementById('result');
-		errorText = document.getElementById('error');
-		
 		resultText.innerHTML = "";
 		errorText.innerHTML = "";
 		
-		dbx = new Dropbox({ accessToken: getAccessToken() });
+		dbx = new Dropbox.Dropbox({ accessToken: getAccessToken() });
 		
 		if( cacheSharedLinks )
 		{
-			statusText.innerHTML = "Caching shared links to reduce API calls...";
+			statusText.innerHTML = "Status: caching shared links to reduce API calls...";
 			onCacheSharedLinks( null );
 		}
 		else
-		{
 			executeQueryCommon();
-		}
 	}
 	
 	function onCacheSharedLinks(cursor)
@@ -317,7 +302,7 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 				executeQueryCommon();
 		}).catch(function(error) {
 			errorText.innerHTML += "Error code " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
-			statusText.innerHTML = "";
+			statusText.innerHTML = "Status: <span style=\"text-style=bold; color:red;\">see error log below</span>";
 		});
 	}
 	
@@ -335,9 +320,7 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 			onWaitForFolder( true );
 			dbx.filesGetMetadata({ path: m_path }).then(function(response) {
 				if( response[".tag"] == 'file' )
-				{
-					filePrintShareLink( m_path, response.name, "1a2b3c" );
-				}
+					processFile( m_path, "dummystring" );
 				else
 				{
 					relativePathStartIndex = m_path.length + 1;
@@ -363,18 +346,17 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 		{
 			var tokenHash = getAccessTokenFromHash();
 			if( tokenHash.length > 0 )
-			{
 				window.location.href = 'https://yasirkula.net/dropbox/downloadlinkgenerator/?access_token=' + tokenHash;
-			}
 			else
 			{
-				var dbx = new Dropbox({ clientId: CLIENT_ID });
+				var dbx = new Dropbox.Dropbox({ clientId: CLIENT_ID });
 				var authUrl = dbx.getAuthenticationUrl('https://yasirkula.net/dropbox/downloadlinkgenerator/');
 				document.getElementById('authlink').href = authUrl;
 			}
 		}
 	}
 	
+	// Source: https://github.com/dropbox/dropbox-sdk-js/blob/master/examples/javascript/utils.js
 	function parseQueryString(str) 
 	{
 		var ret = Object.create(null);
@@ -400,13 +382,12 @@ Have any questions? Drop me a mail at <a href="mailto:yasirkula@gmail.com">yasir
 			// http://w3.org/TR/2012/WD-url-20120524/#collect-url-parameters
 			val = val === undefined ? null : decodeURIComponent(val);
 
-			if (ret[key] === undefined) {
+			if (ret[key] === undefined)
 				ret[key] = val;
-			} else if (Array.isArray(ret[key])) {
+			else if (Array.isArray(ret[key]))
 				ret[key].push(val);
-			} else {
+			else
 				ret[key] = [ret[key], val];
-			}
 		});
 
 		return ret;
