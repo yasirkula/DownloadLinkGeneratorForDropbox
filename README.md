@@ -1,19 +1,22 @@
-# Download Link Generator For Dropbox
-Create list of files and their download links in a Dropbox folder. Available at: https://yasirkula.net/dropbox/downloadlinkgenerator/
+# Download Link Generator For Dropbox™
 
-## How does it work?
+This is the source code of *Download Link Generator For Dropbox™* extension: https://yasirkula.net/dropbox/downloadlinkgenerator/
 
-Using the Dropbox API, after user authenticates the app, a number of queries are sent to the path user provides.
+It lets users generate a list of their files with their download links in a Dropbox™ folder. Feel free to use this repository as a reference if you are creating your own Dropbox™ extension with similar functionality.
 
-- If path leads to a file and the file is shared, download link to that file is returned
-- If path leads to a directory, download links for any shared files in that directory and any directories under it (recursive) are returned
+**[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
 
-If auto sharing is enabled, any unshared file at the path will automatically be shared publicly.
+## How does the extension work?
 
-## Why would I want to use this app?
+Using the [Dropbox API](https://www.dropbox.com/developers/documentation/http/documentation), after user authenticates the extension and enters the path of a file/folder, a number of queries are made as follows:
 
-Say you have a large number of files and you want to get a download link for each of these files. You decide to host your files on Dropbox. The thing is, you don't want to spend so much time sharing each file separately and copying their download links manually. 
+- If path leads to a file and the file is publicly shared, download link of that file is returned
+- If path leads to a folder, download links for all publicly shared files in that folder and any folders underneath it (recursive) are returned
 
-With this app, you can enable the "auto share" option and enter the path to the Dropbox directory that contains your files and get a list of download links in the following format (one file per line): {File relative path} {Download url}
+If "*Auto share*" feature is enabled, any non-public (unshared) files in the folder will be publicly shared automatically.
 
-Now you can write a simple script to fetch the download links from that list and use it however you want.
+## Why would I want to use this extension?
+
+Say you have a large number of files on Dropbox™ and you want to get a download link for each of these files. The thing is, you don't want to spend so much time sharing each file one by one and copying their download links manually.
+
+Instead, you can tell this extension the path of the Dropbox™ folder that holds your files (with "*Auto share*" feature enabled) and the extension will traverse that folder, generating a list of the download links in the following format (one file per line): `{File relative path} {File's download url}`
