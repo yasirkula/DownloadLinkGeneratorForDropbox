@@ -3,37 +3,12 @@
 <head>
 	<title>Dropbox Download Link Generator</title>
 	
-	<!-- Optional. -->
 	<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@7/dist/polyfill.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/2.0.3/fetch.js"></script>
-	
 	<script src="https://unpkg.com/dropbox/dist/Dropbox-sdk.min.js"></script>
 </head>
-<body onload="pageLoaded()">
-	<?php
-	session_start();
-	
-	if( isset($_GET["reauthenticate"]) && $_GET["reauthenticate"] == 1 )
-	{
-		unset( $_SESSION["downloadlinkgeneratordb_token"] );
-	}
-	
-	if( isset($_GET["access_token"]) && $_GET["access_token"] )
-	{
-		$_SESSION["downloadlinkgeneratordb_token"] = $_GET["access_token"];
-	}
-	
-	$tokenIsSet = 0;
-	?>
-	<input id="authtoken" type="hidden" value="<?php 
-	if( isset($_SESSION["downloadlinkgeneratordb_token"]) && $_SESSION["downloadlinkgeneratordb_token"] )
-	{
-		$tokenIsSet = 1;
-		echo $_SESSION["downloadlinkgeneratordb_token"];
-	}
-	?>" />
-	
-	<pre>Source code available at: <a href="https://github.com/yasirkula/DownloadLinkGeneratorForDropbox">https://github.com/yasirkula/DownloadLinkGeneratorForDropbox</a> (using <i>HTML</i>, <i>PHP</i> and <i>Javascript</i>)</pre>
+<body>
+	<pre>Source code available at: <a href="https://github.com/yasirkula/DownloadLinkGeneratorForDropbox">https://github.com/yasirkula/DownloadLinkGeneratorForDropbox</a> (using <i>HTML</i> and <i>Javascript</i>)</pre>
 	
 	<h3>How does it work?</h3>
 	Using the Dropbox API, after you authenticate this app, a number of queries are sent to the path you provide.</br></br>
@@ -44,24 +19,25 @@
 	If auto sharing is enabled, any unshared file at the path will automatically be shared publicly.</br>
 	Note that using this app on a huge folder might yield API errors for sending too many requests to the server.</br></br>
 	
-	<?php if( $tokenIsSet == 1 ) { ?>
-	Click this button when e.g. you login as another Dropbox user or if app doesn't seem to work: <button onclick="revokeSession()">Reauthenticate</button></br></br>
-	
 	<h3>Example path</h3>
 	<img src="ExamplePath.png" alt="Example path image"></img></br>
 	Path to the selected file: Photoshop/Web3/HTML/index.html</br>
 	Path to the parent folder: Photoshop/Web3/HTML/</br></br>
-	
+
 	<h3>Options</h3>
-	Path to file/folder: <input type="text" name="dropboxPath" id="dropboxPath"></br>
+	
+	<div id="pre-auth-section" style="display:none;">
+	Click here to authenticate this app on Dropbox first: <b><a href="" id="authlink" class="button">Authenticate</a></b>
+	</div>
+	
+	<div id="authed-section" style="display:none;">
+	Path to file/folder: <input type="text" name="dropboxPath" id="dropboxPath" placeholder="All files"></br>
 	<input type="checkbox" name="cacheLinks" id="cacheLinks"> Cache shared links for better performance (<u>select this option</u> unless you enter the path of a single file or a tiny directory)</br>
 	<input type="checkbox" name="autoShare" id="autoShare"> Automatically share unshared file(s) publicly (because unshared files can't return a download link)(<b>Warning:</b> undoing this might be a nightmare for large directories!)</br></br>
 	
-	<button onclick="executeQuery()">Go!</button>
-	<?php } else { ?>
-	Click here to authenticate this app on Dropbox first: <a href="" id="authlink" class="button">Authenticate</a>
-	<?php } ?>
-	
+	<button onclick="executeQuery()" id="goButton">Go!</button>
+	</div>
+  
 	</br>
 	
 	<pre id="status"></pre></br>
@@ -89,32 +65,14 @@
 	
 	var relativePathStartIndex = 0;
 	
-	function revokeSession()
+	function getAccessTokenFromUrl() 
 	{
-		window.location.href = 'https://yasirkula.net/dropbox/downloadlinkgenerator/?reauthenticate=1';
-	}
-	
-	function getAccessTokenFromHash() 
-	{
-		var result = parseQueryString(window.location.hash).access_token;
-		if( !result )
-			return "";
-
-		return result;
-	}
-
-	function getAccessToken() 
-	{
-		var val = document.getElementById('authtoken').value;
-		if( !val )
-			return "";
-
-		return val;
+		return parseQueryString(window.location.hash).access_token;
 	}
 
 	function isAuthenticated() 
 	{
-		return getAccessToken().length > 0;
+		return !!getAccessTokenFromUrl();
 	}
 
 	function processFolder(m_path, cursor)
@@ -127,8 +85,9 @@
 				processFolderInner( m_path, response );
 				onWaitForFolder( false );
 			}).catch(function(error) {
-				errorText.innerHTML += "Error code " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
+				errorText.innerHTML += "Error code (processFolder without cursor) " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
 				onWaitForFolder( false );
+				console.error( error );
 			});
 		}
 		else
@@ -137,18 +96,19 @@
 				processFolderInner( m_path, response );
 				onWaitForFolder( false );
 			}).catch(function(error) {
-				errorText.innerHTML += "Error code " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
+				errorText.innerHTML += "Error code (processFolder with cursor) " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
 				onWaitForFolder( false );
+				console.error( error );
 			});
 		}
 	}
 	
 	function processFolderInner(m_path, response)
 	{
-		if( response.has_more )
-			processFolder( m_path, response.cursor );
+		if( response.result.has_more )
+			processFolder( m_path, response.result.cursor );
 			
-		var items = response.entries;
+		var items = response.result.entries;
 		items.forEach(function(item) 
 		{
 			if( item[".tag"] != 'folder' )
@@ -178,9 +138,9 @@
 			onWaitForFile( true );
 			
 			dbx.sharingListSharedLinks({ path: m_path, direct_only: true }).then(function(response) {
-				if( response.links.length > 0 )
+				if( response.result.links.length > 0 )
 				{
-					resultText.innerHTML += getDownloadLink( m_path, response.links[0].url );
+					resultText.innerHTML += getDownloadLink( m_path, response.result.links[0].url );
 					onWaitForFile( false );
 				}
 				else if( autoShareFiles )
@@ -188,8 +148,9 @@
 				else
 					onWaitForFile( false );
 			}).catch(function(error) {
-				errorText.innerHTML += "Error code " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
+				errorText.innerHTML += "Error code (processFile) " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
 				onWaitForFile( false );
+				console.error( error );
 			});
 		}
 	}
@@ -197,11 +158,12 @@
 	function shareFile(m_path)
 	{
 		dbx.sharingCreateSharedLinkWithSettings({ path: m_path }).then(function(response) {
-			resultText.innerHTML += getDownloadLink( m_path, response.url );
+			resultText.innerHTML += getDownloadLink( m_path, response.result.url );
 			onWaitForFile( false );
 		}).catch(function(error) {
-			errorText.innerHTML += "Error code " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
+			errorText.innerHTML += "Error code (shareFile) " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
 			onWaitForFile( false );
+			console.error( error );
 		});
 	}
 	
@@ -239,7 +201,15 @@
 		if( waitingFileCount != 0 || waitingFolderCount != 0 )
 			statusText.innerHTML = "Status: <span style=\"text-style=bold; color:blue;\">please wait...</span>";
 		else
-			statusText.innerHTML = "Status: <span style=\"text-style=bold; color:green;\">finished</span>";
+		{
+			if( errorText.innerHTML.length > 0 )
+				statusText.innerHTML = "Status: <span style=\"text-style=bold; color:red;\">finished with errors (see below)</span>";
+			else
+				statusText.innerHTML = "Status: <span style=\"text-style=bold; color:green;\">finished</span>";
+			
+			setInputFieldsEnabled( true );
+			scrollToBottom();
+		}
 	}
 	
 	function getDownloadLink(m_path, shareLink)
@@ -271,7 +241,9 @@
 		resultText.innerHTML = "";
 		errorText.innerHTML = "";
 		
-		dbx = new Dropbox.Dropbox({ accessToken: getAccessToken() });
+		setInputFieldsEnabled( false );
+		
+		dbx = new Dropbox.Dropbox({ accessToken: getAccessTokenFromUrl() });
 		
 		if( cacheSharedLinks )
 		{
@@ -280,6 +252,8 @@
 		}
 		else
 			executeQueryCommon();
+		
+		scrollToBottom();
 	}
 	
 	function onCacheSharedLinks(cursor)
@@ -289,20 +263,24 @@
 			params.cursor = cursor;
 		
 		dbx.sharingListSharedLinks( params ).then(function(response) {
-			if( response.has_more )
-				onCacheSharedLinks( response.cursor );
+			if( response.result.has_more )
+				onCacheSharedLinks( response.result.cursor );
 		
-			var links = response.links;
+			var links = response.result.links;
 			links.forEach(function(link) 
 			{
 				cachedShareLinks[link.rev] = link.url;
 			});
 			
-			if( !response.has_more )
+			if( !response.result.has_more )
 				executeQueryCommon();
 		}).catch(function(error) {
-			errorText.innerHTML += "Error code " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
+			errorText.innerHTML += "Error code (onCacheSharedLinks) " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
 			statusText.innerHTML = "Status: <span style=\"text-style=bold; color:red;\">see error log below</span>";
+			console.error( error );
+		
+			setInputFieldsEnabled( true );
+			scrollToBottom();
 		});
 	}
 	
@@ -319,7 +297,7 @@
 		{
 			onWaitForFolder( true );
 			dbx.filesGetMetadata({ path: m_path }).then(function(response) {
-				if( response[".tag"] == 'file' )
+				if( response.result[".tag"] == 'file' )
 					processFile( m_path, "dummystring" );
 				else
 				{
@@ -329,8 +307,9 @@
 				
 				onWaitForFolder( false );
 			}).catch(function(error) {
-				errorText.innerHTML += "Error code " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
+				errorText.innerHTML += "Error code (executeQueryCommon) " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
 				onWaitForFolder( false );
+				console.error( error );
 			});
 		}
 		else
@@ -340,20 +319,19 @@
 		}
 	}
 	
-	function pageLoaded()
+	function setInputFieldsEnabled(isEnabled)
 	{
-		if( !isAuthenticated() )
-		{
-			var tokenHash = getAccessTokenFromHash();
-			if( tokenHash.length > 0 )
-				window.location.href = 'https://yasirkula.net/dropbox/downloadlinkgenerator/?access_token=' + tokenHash;
-			else
-			{
-				var dbx = new Dropbox.Dropbox({ clientId: CLIENT_ID });
-				var authUrl = dbx.getAuthenticationUrl('https://yasirkula.net/dropbox/downloadlinkgenerator/');
-				document.getElementById('authlink').href = authUrl;
-			}
-		}
+		document.getElementById('dropboxPath').disabled = !isEnabled;
+		document.getElementById('cacheLinks').disabled = !isEnabled;
+		document.getElementById('autoShare').disabled = !isEnabled;
+		document.getElementById('goButton').disabled = !isEnabled;
+	}
+	
+	// Credit: https://stackoverflow.com/a/33193668/2373034
+	function scrollToBottom()
+	{
+		var scrollingElement = ( document.scrollingElement || document.body );
+		scrollingElement.scrollTop = scrollingElement.scrollHeight;
 	}
 	
 	// Source: https://github.com/dropbox/dropbox-sdk-js/blob/master/examples/javascript/utils.js
@@ -391,6 +369,18 @@
 		});
 
 		return ret;
+	}
+	
+	if (isAuthenticated())
+		document.getElementById('authed-section').style.display = 'block';
+	else
+	{
+		document.getElementById('pre-auth-section').style.display = 'block';
+		
+		var dbx = new Dropbox.Dropbox({ clientId: CLIENT_ID });
+		var authUrl = dbx.auth.getAuthenticationUrl('https://yasirkula.net/dropbox/downloadlinkgenerator/').then(function(authUrl) {
+			document.getElementById('authlink').href = authUrl;
+		});
 	}
 	</script>
 </body>
