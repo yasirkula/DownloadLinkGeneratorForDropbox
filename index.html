@@ -1,48 +1,61 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-	<title>Dropbox Download Link Generator</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+	<title>Download Link Generator for Dropbox</title>
+	<link rel="icon" href="favicon.png">
 	
 	<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@7/dist/polyfill.min.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/2.0.3/fetch.js"></script>
 	<script src="https://unpkg.com/dropbox/dist/Dropbox-sdk.min.js"></script>
 </head>
-<body>
-	<pre>Source code available at: <a href="https://github.com/yasirkula/DownloadLinkGeneratorForDropbox">https://github.com/yasirkula/DownloadLinkGeneratorForDropbox</a> (using <i>HTML</i> and <i>Javascript</i>)</pre>
-	
-	<h3>How does it work?</h3>
-	Using the Dropbox API, after you authenticate this app, a number of queries are sent to the path you provide.</br></br>
-	
-	- If path leads to a file and the file is shared, download link to that file is returned</br>
-	- If path leads to a directory, download links for any shared file in that directory and any directory under it (recursive) are returned</br></br>
-	
-	If auto sharing is enabled, any unshared file at the path will automatically be shared publicly.</br>
-	Note that using this app on a huge folder might yield API errors for sending too many requests to the server.</br></br>
-	
-	<h3>Example path</h3>
-	<img src="ExamplePath.png" alt="Example path image"></img></br>
-	Path to the selected file: Photoshop/Web3/HTML/index.html</br>
-	Path to the parent folder: Photoshop/Web3/HTML/</br></br>
+<body style="font-family: Helvetica, sans-serif; margin-bottom: 60px;">
 
-	<h3>Options</h3>
+	<div style="max-width:680px; margin:0 auto; padding-top: 10px; line-height: 130%;">
+	
+	<h3 style="text-align:center;">Download Link Generator for Dropbox</h3>
+	
+	<p style="text-align:center;"><a href="https://github.com/yasirkula/DownloadLinkGeneratorForDropbox">Source Code</a></p>
+	
+	<p>This Dropbox extension/add-on lets you generate direct download links for the files in your Dropbox storage.</p>
+	
+	<p><b>Privacy:</b> This extension accesses the metadata of the target file/folder and reads its download link from that metadata. All communications with the Dropbox servers is handled via the official <i>Dropbox Javascript SDK</i> and your Dropbox data is not stored in any way in our databases. This extension is hosted at <i>yasirkula.net</i> website and is subject to its <a href="https://yasirkula.net/privacy-policy/">Privacy Policy</a>.</p>
+	
+	<p><b>How it works:</b> Using the <i>Dropbox Javascript SDK</i>, after you authenticate this extension, a number of queries are sent to the path you provide:</p>
+	
+	<ul>
+		<li>If path leads to a file and the file is shared publicly, download link to that file is returned</li>
+		<li>If path leads to a directory, download links for all shared files in that directory are returned</li>
+	</ul>
+	
+	<p>If auto sharing is enabled, any unshared file(s) at the path will automatically be shared publicly. Note that using this app on a very large folder might yield API errors for sending too many requests to the server.</p>
+	
+	<hr />
+	
+	<img src="ExamplePath.png" alt="Example path image" /><br />
+	
+	<p>In the example image above, the path of the selected file is <code>Photoshop/Web3/HTML/index.html</code> and its parent directory's path is <code>Photoshop/Web3/HTML/</code></p>
+	
+	<hr />
 	
 	<div id="pre-auth-section" style="display:none;">
-	Click here to authenticate this app on Dropbox first: <b><a href="" id="authlink" class="button">Authenticate</a></b>
+	<p><b>You need to authorize access to Dropbox first:</b> <button id="authorize-button" onclick="handleAuthClick()">Authorize</button></p>
 	</div>
 	
 	<div id="authed-section" style="display:none;">
-	Path to file/folder: <input type="text" name="dropboxPath" id="dropboxPath" placeholder="All files"></br>
-	<input type="checkbox" name="cacheLinks" id="cacheLinks"> Cache shared links for better performance (<u>select this option</u> unless you enter the path of a single file or a tiny directory)</br>
-	<input type="checkbox" name="autoShare" id="autoShare"> Automatically share unshared file(s) publicly (because unshared files can't return a download link)(<b>Warning:</b> undoing this might be a nightmare for large directories!)</br></br>
+	<p><b>Path of the file/folder:</b> <input type="text" name="dropboxPath" id="dropboxPath" placeholder="All files"></p>
+	<p><input type="checkbox" name="cacheLinks" id="cacheLinks"> Cache shared links for better performance (<u>select this option</u> unless you enter the path of a single file or a very small directory)</p>
+	<p><input type="checkbox" name="autoShare" id="autoShare"> Automatically share unshared file(s) publicly (otherwise, unshared files' download links can't be returned) (<b>Warning:</b> undoing this might be a nightmare for large directories!)</p>
 	
 	<button onclick="executeQuery()" id="goButton">Go!</button>
-	</div>
-  
-	</br>
+	</div><br />
 	
-	<pre id="status"></pre></br>
-	<pre id="result"></pre>
-	<pre id="error" style="color: red; text-style: bold;"></pre>
+	</div>
+	
+	<pre id="status" style="max-width:680px; margin:0 auto;"></pre><br />
+	<pre id="result" style="display:table; margin:0 auto;"></pre><br />
+	<pre id="error" style="color: red; max-width:680px; margin:0 auto;"></pre>
 	
 	<script>
 	var CLIENT_ID = 'YOUR_APP_CLIENT_ID';
@@ -51,6 +64,8 @@
 	var statusText = document.getElementById('status');
 	var resultText = document.getElementById('result');
 	var errorText = document.getElementById('error');
+	
+	var authorizationUrl = "";
 	
 	var waitingFileCount = 0;
 	var waitingFolderCount = 0;
@@ -73,6 +88,12 @@
 	function isAuthenticated() 
 	{
 		return !!getAccessTokenFromUrl();
+	}
+	
+	function handleAuthClick()
+	{
+		if( authorizationUrl && authorizationUrl.length > 0 )
+			window.location.href = authorizationUrl;
 	}
 
 	function processFolder(m_path, cursor)
@@ -199,13 +220,13 @@
 	function onStatusUpdate()
 	{
 		if( waitingFileCount != 0 || waitingFolderCount != 0 )
-			statusText.innerHTML = "Status: <span style=\"text-style=bold; color:blue;\">please wait...</span>";
+			statusText.innerHTML = "<b>Status: <span style=\"color:blue;\">please wait...</span></b>";
 		else
 		{
 			if( errorText.innerHTML.length > 0 )
-				statusText.innerHTML = "Status: <span style=\"text-style=bold; color:red;\">finished with errors (see below)</span>";
+				statusText.innerHTML = "<b>Status: <span style=\"color:red;\">finished with errors (see below)</span></b>";
 			else
-				statusText.innerHTML = "Status: <span style=\"text-style=bold; color:green;\">finished</span>";
+				statusText.innerHTML = "<b>Status: <span style=\"color:green;\">finished</span></b>";
 			
 			setInputFieldsEnabled( true );
 			scrollToBottom();
@@ -247,7 +268,7 @@
 		
 		if( cacheSharedLinks )
 		{
-			statusText.innerHTML = "Status: caching shared links to reduce API calls...";
+			statusText.innerHTML = "<b>Status: caching shared links to reduce API calls...</b>";
 			onCacheSharedLinks( null );
 		}
 		else
@@ -276,7 +297,7 @@
 				executeQueryCommon();
 		}).catch(function(error) {
 			errorText.innerHTML += "Error code (onCacheSharedLinks) " + error.status + ": " + error.error + "(" + error.message + ")\r\n";
-			statusText.innerHTML = "Status: <span style=\"text-style=bold; color:red;\">see error log below</span>";
+			statusText.innerHTML = "<b>Status: <span style=\"color:red;\">see error log below</span></b>";
 			console.error( error );
 		
 			setInputFieldsEnabled( true );
@@ -379,7 +400,7 @@
 		
 		var dbx = new Dropbox.Dropbox({ clientId: CLIENT_ID });
 		var authUrl = dbx.auth.getAuthenticationUrl('https://yasirkula.net/dropbox/downloadlinkgenerator/').then(function(authUrl) {
-			document.getElementById('authlink').href = authUrl;
+			authorizationUrl = authUrl;
 		});
 	}
 	</script>
