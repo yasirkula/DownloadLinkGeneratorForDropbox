@@ -4,7 +4,7 @@ This is the source code of *Download Link Generator For Dropbox™* extension: h
 
 It lets users generate a list of their files with their download links in a Dropbox™ folder. Feel free to use this repository as a reference if you are creating your own Dropbox™ extension with similar functionality.
 
-**[Support the Developer ☕](https://yasirkula.itch.io/unity3d)**
+**[GitHub Sponsors ☕](https://github.com/sponsors/yasirkula)**
 
 ## How does the extension work?
 
